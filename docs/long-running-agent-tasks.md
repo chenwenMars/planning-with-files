@@ -50,6 +50,26 @@ Steady state, the hooks re-inject about 330 tokens per user turn plus about 90 p
 
 If a task finishes in under 5 tool calls, skip the skill; the structure only pays off on work long enough to lose.
 
+## FAQ: What do I do when context nears the compaction limit?
+
+**Q:** My task has 5 planned steps. After step 1, the context is at ~140K tokens and automatic compaction is about to trigger. Should I open a new window? What prompt should I use to continue?
+
+You can continue the same conversation. Keep the planning files current as you work, including phase status, findings, and test results. Compaction leaves those files on disk, but cannot recover details that were never saved.
+
+1. `PreCompact` prints a reminder before compaction. [Claude Code can use its stdout as compaction-summary instructions](https://code.claude.com/docs/en/hooks#precompact-output), but the hook itself does not write planning files or start a separate agent turn to save unsaved progress.
+2. The Claude Code plugin's `SessionStart` hook re-reads selected planning state on `startup`, `resume`, `clear`, and `compact`.
+3. With an active hook route, `UserPromptSubmit` injects a bounded excerpt of the selected plan when you submit the next prompt. It does not fire merely because compaction completed.
+
+Automatic injection requires a resolvable selected plan and passing attestation checks where required. Selection errors or missing or mismatched attestation can prevent injection. Resolve the selection, review intentional plan edits, and explicitly re-attest them as described in [attestation locking](attestation-locking.md). Read the full files if the injected excerpt does not include the current phase.
+
+For a standalone skill install, invoke the installed planning-with-files skill again in a fresh session, including after `/clear`. Its hooks are activation-scoped and it has no `SessionStart` hook. Read the selected `task_plan.md`, `findings.md`, and `progress.md`, in the project root or under `.planning/<slug>/`.
+
+If recovery is incomplete, use this prompt:
+
+```text
+Read the selected task_plan.md, findings.md, and progress.md, check the current code changes, and continue from the recorded phase.
+```
+
 ## Related pages
 
 - [Claude Code lost context after compaction: how to recover and prevent it](claude-code-lost-context-after-compaction.md)
